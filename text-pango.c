@@ -75,6 +75,14 @@ void render_text(struct pango_source *src)
 	set_halignment(src, layout);
 	set_lang(src, layout);
 
+	if (src->custom_width > 0) {
+		pango_layout_set_width(layout, src->custom_width * PANGO_SCALE);
+		pango_layout_set_wrap(layout, src->word_wrap
+			? PANGO_WRAP_WORD_CHAR : PANGO_WRAP_CHAR);
+	} else {
+		pango_layout_set_width(layout, -1);
+	}
+
 	pango_layout_set_text(layout, src->text, -1);
 
 	/* Get text dimensions and create a context to render to */
@@ -266,6 +274,10 @@ static void pango_source_get_defaults(obs_data_t *settings)
 	obs_data_set_default_bool(settings, "log_mode", false);
 	obs_data_set_default_int(settings, "log_lines", 6);
 
+	obs_data_set_default_bool(settings, "fixed_width", false);
+	obs_data_set_default_int(settings, "fixed_width_value", 800);
+	obs_data_set_default_bool(settings, "word_wrap", true);
+
 	obs_data_set_default_string(settings, "encoding.name", "UTF-8");
 
 }
@@ -356,10 +368,17 @@ static obs_properties_t *pango_source_get_properties(void *unused)
 	prop = obs_properties_add_int(props, "log_lines",
 		obs_module_text("ChatlogMode.Lines"), 1, 1000, 1);
 	obs_property_set_visible(prop, false);
-	// obs_properties_add_int(props, "custom_width",
-	// 	obs_module_text("CustomWidth"), 0, 4096, 1);
-	// obs_properties_add_bool(props, "word_wrap",
-	// 	obs_module_text("WordWrap"));
+
+	prop = obs_properties_add_bool(props, "fixed_width",
+		obs_module_text("FixedWidth"));
+	obs_property_set_modified_callback(prop,
+		pango_source_properties_fixed_width_changed);
+	prop = obs_properties_add_int(props, "fixed_width_value",
+		obs_module_text("FixedWidth.Width"), 1, 8192, 1);
+	obs_property_set_visible(prop, false);
+	prop = obs_properties_add_bool(props, "word_wrap",
+		obs_module_text("FixedWidth.WordWrap"));
+	obs_property_set_visible(prop, false);
 
 	prop = obs_properties_add_bool(props, "encoding.enable",
 		obs_module_text("Encoding.Enable"));
@@ -511,6 +530,10 @@ static void pango_source_update(void *data, obs_data_t *settings)
 
 	src->log_mode = obs_data_get_bool(settings, "log_mode");
 	src->log_lines = (uint32_t)obs_data_get_int(settings, "log_lines");
+
+	src->custom_width = obs_data_get_bool(settings, "fixed_width")
+		? (uint32_t)obs_data_get_int(settings, "fixed_width_value") : 0;
+	src->word_wrap = obs_data_get_bool(settings, "word_wrap");
 
 	src->file_timestamp = 0;
 	src->file_last_checked = 0.0;

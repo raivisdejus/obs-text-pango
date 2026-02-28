@@ -213,6 +213,21 @@ static bool pango_source_properties_log_mode_changed(obs_properties_t *props,
 	return true;
 }
 
+static bool pango_source_properties_fixed_width_changed(obs_properties_t *props,
+		obs_property_t *property, obs_data_t *settings)
+{
+	UNUSED_PARAMETER(property);
+
+	bool enabled = obs_data_get_bool(settings, "fixed_width");
+
+	obs_property_t *width_prop = obs_properties_get(props, "fixed_width_value");
+	obs_property_t *wrap_prop  = obs_properties_get(props, "word_wrap");
+	obs_property_set_visible(width_prop, enabled);
+	obs_property_set_visible(wrap_prop,  enabled);
+
+	return true;
+}
+
 char *encoding_ln[4] = {
 	"\n", // unknown just use single byte newline
 	"\n", // UTF-8
