@@ -116,6 +116,13 @@ void render_text(struct pango_source *src)
 		src->width = text_width;
 	}
 
+	/* Apply fixed height: clip to bottom of text */
+	int height_overflow = 0;
+	if (src->custom_height > 0 && src->height > src->custom_height) {
+		height_overflow = src->height - src->custom_height;
+		src->height = src->custom_height;
+	}
+
 	/* Allocate and initialize Cairo surface */
 	int stride = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, src->width);
 	if (!stride || !src->height) {
@@ -138,6 +145,10 @@ void render_text(struct pango_source *src)
 		cairo_translate(render_context, src->width, 0);
 		cairo_rotate(render_context, (M_PI*0.5));
 	}
+
+	/* Shift upward so the bottom of the text is visible when height is clipped */
+	if (height_overflow > 0)
+		cairo_translate(render_context, 0, -height_overflow);
 
 	int xoffset = outline_width;
 	int yoffset = outline_width;
@@ -278,6 +289,9 @@ static void pango_source_get_defaults(obs_data_t *settings)
 	obs_data_set_default_int(settings, "fixed_width_value", 800);
 	obs_data_set_default_bool(settings, "word_wrap", true);
 
+	obs_data_set_default_bool(settings, "fixed_height", false);
+	obs_data_set_default_int(settings, "fixed_height_value", 400);
+
 	obs_data_set_default_string(settings, "encoding.name", "UTF-8");
 
 }
@@ -378,6 +392,14 @@ static obs_properties_t *pango_source_get_properties(void *unused)
 	obs_property_set_visible(prop, false);
 	prop = obs_properties_add_bool(props, "word_wrap",
 		obs_module_text("FixedWidth.WordWrap"));
+	obs_property_set_visible(prop, false);
+
+	prop = obs_properties_add_bool(props, "fixed_height",
+		obs_module_text("FixedHeight"));
+	obs_property_set_modified_callback(prop,
+		pango_source_properties_fixed_height_changed);
+	prop = obs_properties_add_int(props, "fixed_height_value",
+		obs_module_text("FixedHeight.Height"), 1, 8192, 1);
 	obs_property_set_visible(prop, false);
 
 	prop = obs_properties_add_bool(props, "encoding.enable",
@@ -534,6 +556,8 @@ static void pango_source_update(void *data, obs_data_t *settings)
 	src->custom_width = obs_data_get_bool(settings, "fixed_width")
 		? (uint32_t)obs_data_get_int(settings, "fixed_width_value") : 0;
 	src->word_wrap = obs_data_get_bool(settings, "word_wrap");
+	src->custom_height = obs_data_get_bool(settings, "fixed_height")
+		? (uint32_t)obs_data_get_int(settings, "fixed_height_value") : 0;
 
 	src->file_timestamp = 0;
 	src->file_last_checked = 0.0;

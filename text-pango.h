@@ -44,6 +44,7 @@ struct pango_source {
 	uint32_t log_lines;
 	uint32_t custom_width;
 	bool word_wrap;
+	uint32_t custom_height;
 
 	char *encoding;
 
